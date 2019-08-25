@@ -1,0 +1,38 @@
+{
+  "name": "changelog-generator",
+  "version": "1.0.0",
+  "description": "Node CLI generating a customizable changelog based on your commit types.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "changelog": "bin/HelloWorld.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyMachado/changelog-generator.git"
+  },
+  "keywords": [
+    "changelog",
+    "release",
+    "tag",
+    "generator",
+    "version",
+    "CLI"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RemyMachado/changelog-generator/issues"
+  },
+  "homepage": "https://github.com/RemyMachado/changelog-generator#readme",
+  "dependencies": {
+    "app-root-path": "^2.2.1",
+    "esm": "^3.2.25",
+    "prompts": "^2.2.1"
+  },
+  "devDependencies": {
+    "prettier": "1.18.2"
+  }
+}
