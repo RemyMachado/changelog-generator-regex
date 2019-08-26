@@ -1,14 +1,17 @@
 #! /usr/bin/env node
 
-const fs = require("fs");
-const { spawnSync } = require("child_process");
-
+import appRoot from "app-root-path";
 import {
+  askAutomaticDefaultChangelog,
   askAutomaticDefaultCommitTypesConfig,
   askFilename,
   askLastCommitPattern,
   askVersionIncrement
 } from "./helpers/askUser";
+import { fileExists, getFileContent } from "./helpers/system/read";
+import { writeToFile } from "./helpers/system/write";
+import { getVersionFromContent } from "./helpers/stringParsing";
+import { commandResultToString, execCommand } from "./helpers/system/exec";
 import STRINGS from "./values/STRINGS";
 
 /* eslint-disable no-console */
@@ -49,23 +52,6 @@ const askAndComputeNewVersionNumber = async lastVersionNumber => {
   return wantedVersionNumber;
 };
 
-const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
-  if (!(await askAutomaticDefaultChangelog(filename))) {
-    return false;
-  }
-
-  return getDefaultChangelog(commitTypes);
-};
-
-const getFileContent = filename => {
-  return fs.readFileSync(filename, { encoding: STRINGS.READ_ENCODING });
-};
-
-const extractVersion = haystack => {
-  const regex = /## \[(\d\.\d\.\d)\]/;
-  return haystack.match(regex);
-};
-
 const getNegativeCommitRegexp = defaultCommitTypes => {
   let negativeRegexPattern = "^";
 
@@ -80,7 +66,7 @@ const getNegativeCommitRegexp = defaultCommitTypes => {
 };
 
 const getLastReleaseVersion = fileName => {
-  const lastVersionResponse = extractVersion(getFileContent(fileName));
+  const lastVersionResponse = getVersionFromContent(getFileContent(fileName));
 
   if (lastVersionResponse && lastVersionResponse.length >= 2) {
     return lastVersionResponse[1];
@@ -89,29 +75,37 @@ const getLastReleaseVersion = fileName => {
   return STRINGS.DEFAULT_VERSION;
 };
 
-const getGitLogsFilterMerge = lastCommitPattern => {
-  const gitLogs = spawnSync("git", [
-    "log",
-    ...STRINGS.GIT_LOG_ARGUMENTS
-  ]).stdout.toString();
-
-  let gitLogsToLastRelease = gitLogs;
-  const indexOfLastReleaseCommit = gitLogs.search(
-    new RegExp(lastCommitPattern)
+const getGitLogsString = () =>
+  commandResultToString(
+    execCommand("git", ["log", ...STRINGS.GIT_LOG_ARGUMENTS])
   );
 
-  if (indexOfLastReleaseCommit !== -1) {
-    gitLogsToLastRelease = gitLogs.substring(0, indexOfLastReleaseCommit);
-  } else {
-    console.log(
-      `\x1b[33mRegular expression '${lastCommitPattern}' wasn't found. The entire logs has been processed`
-    );
-  }
-
-  return gitLogsToLastRelease
+const cleanGitLogs = gitLogs =>
+  gitLogs
     .replace(/.*Merge branch.*\n/g, "")
     .replace(/^"- /gm, "")
     .replace(/"\n/g, "\n");
+
+const getCleanGitLogs = lastCommitPattern => {
+  const entireGitLogs = getGitLogsString();
+
+  const indexOfLastReleaseCommit = entireGitLogs.search(
+    new RegExp(lastCommitPattern)
+  );
+
+  if (indexOfLastReleaseCommit === -1) {
+    console.log(
+      `\x1b[33mRegular expression '${lastCommitPattern}' wasn't found. The entire logs have been processed.`
+    );
+    return cleanGitLogs(entireGitLogs);
+  } else {
+    const lastReleaseGitLogs = entireGitLogs.substring(
+      0,
+      indexOfLastReleaseCommit
+    );
+
+    return cleanGitLogs(lastReleaseGitLogs);
+  }
 };
 
 const getDefaultChangelog = defaultCommitTypes => {
@@ -213,6 +207,14 @@ const logCancelAction = () => {
   console.log(`\x1b[31mRelease generation was cancelled.`);
 };
 
+const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
+  if (!(await askAutomaticDefaultChangelog(filename))) {
+    return false;
+  }
+
+  return getDefaultChangelog(commitTypes);
+};
+
 /* AUTOMATIC LAUNCH: */
 (async () => {
   let changelogContent;
@@ -227,10 +229,10 @@ const logCancelAction = () => {
     return;
   }
 
-  if (!fs.existsSync(commitTypesConfigFilename)) {
+  if (!fileExists(commitTypesConfigFilename)) {
     console.log(`'${commitTypesConfigFilename}' not found.`);
     if (await askAutomaticDefaultCommitTypesConfig(commitTypesConfigFilename)) {
-      fs.writeFileSync(
+      writeToFile(
         commitTypesConfigFilename,
         STRINGS.DEFAULT_COMMIT_TYPES_CONFIG_CONTENT
       );
@@ -250,13 +252,16 @@ const logCancelAction = () => {
     return;
   }
 
-  /* eslint-disable-next-line global-require,import/no-dynamic-require */
-  const { defaultCommitTypes } = require(`../${commitTypesConfigFilename}`);
+  const defaultCommitTypes = appRoot.require(commitTypesConfigFilename).default;
 
-  if (fs.existsSync(changeLogFilename)) {
+  console.log(defaultCommitTypes);
+
+  const changeLogAbsolutePath = appRoot.resolve(changeLogFilename);
+
+  if (fileExists(changeLogAbsolutePath)) {
     changelogContent = getFileContent(changeLogFilename);
   } else {
-    console.log(`'${changeLogFilename}' not found.`);
+    console.log(`'${changeLogAbsolutePath}' not found.`);
     changelogContent = await askAndGetDefaultChangelogContent(
       changeLogFilename,
       defaultCommitTypes
@@ -267,7 +272,7 @@ const logCancelAction = () => {
       return;
     }
 
-    fs.writeFileSync(changeLogFilename, changelogContent);
+    writeToFile(changeLogFilename, changelogContent);
   }
 
   const lastReleaseVersion = getLastReleaseVersion(changeLogFilename);
@@ -298,7 +303,7 @@ const logCancelAction = () => {
 
   const sortedCommits = sortLogsPerCommitType(
     defaultCommitTypes,
-    getGitLogsFilterMerge(lastCommitPattern)
+    getCleanGitLogs(lastCommitPattern)
   );
 
   const newContent = genReleaseContentWithSortedSections(
@@ -312,6 +317,6 @@ const logCancelAction = () => {
     newContent
   );
 
-  fs.writeFileSync(changeLogFilename, newChangelogContent);
+  writeToFile(changeLogFilename, newChangelogContent);
   logSuccessReleaseGeneration(changeLogFilename);
 })();
