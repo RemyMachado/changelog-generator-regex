@@ -6,54 +6,28 @@ import {
   askAutomaticDefaultCommitTypesConfig,
   askFilename,
   askLastCommitPattern,
-  askVersionIncrement
+  askVersionTypeIncrement
 } from "./helpers/askUser";
 import { fileExists, getFileContent } from "./helpers/system/read";
 import { writeToFile } from "./helpers/system/write";
-import { getVersionFromContent } from "./helpers/stringParsing";
+import {
+  getVersionFromContent,
+  incrementVersion
+} from "./helpers/stringParsing";
 import { commandResultToString, execCommand } from "./helpers/system/exec";
+import {
+  cleanGitLogs,
+  getRidOfCommitTypesRegexp
+} from "./helpers/regularExpressions";
+import { getTwoDigitsDate } from "./helpers/date";
+import {
+  printCancelAction,
+  printError,
+  printSuccess,
+  printSuccessReleaseGeneration,
+  printWarning
+} from "./helpers/printers";
 import STRING from "./values/STRING";
-import VERSION from "./values/VERSION";
-
-/* eslint-disable no-console */
-
-const askAndComputeNewVersionNumber = async lastVersionNumber => {
-  const result = await askVersionIncrement();
-
-  const versionParts = lastVersionNumber.split(".");
-
-  switch (result) {
-    case VERSION.MAJOR:
-      versionParts[0] = Number(versionParts[0]) + 1;
-      versionParts[1] = 0;
-      versionParts[2] = 0;
-      break;
-    case VERSION.MINOR:
-      versionParts[1] = Number(versionParts[1]) + 1;
-      versionParts[2] = 0;
-      break;
-    case VERSION.PATCH:
-      versionParts[2] = Number(versionParts[2]) + 1;
-      break;
-    default:
-      return undefined;
-  }
-
-  return versionParts.join(".");
-};
-
-const getNegativeCommitRegexp = defaultCommitTypes => {
-  let negativeRegexPattern = "^";
-
-  for (const commitType of Object.keys(defaultCommitTypes)) {
-    negativeRegexPattern = negativeRegexPattern.concat(
-      `(?!\\[${commitType}\\])`
-    );
-  }
-  negativeRegexPattern = negativeRegexPattern.concat(".*");
-
-  return new RegExp(negativeRegexPattern, "gm");
-};
 
 const getLastReleaseVersion = fileName => {
   const lastVersionResponse = getVersionFromContent(getFileContent(fileName));
@@ -70,12 +44,6 @@ const getGitLogsString = () =>
     execCommand("git", ["log", ...STRING.GIT_LOG_ARGUMENTS])
   );
 
-const cleanGitLogs = gitLogs =>
-  gitLogs
-    .replace(/.*Merge branch.*\n/g, "")
-    .replace(/^"- /gm, "")
-    .replace(/"\n/g, "\n");
-
 const getCleanGitLogs = lastCommitPattern => {
   const entireGitLogs = getGitLogsString();
 
@@ -84,9 +52,10 @@ const getCleanGitLogs = lastCommitPattern => {
   );
 
   if (indexOfLastReleaseCommit === -1) {
-    console.log(
-      `\x1b[33mRegular expression '${lastCommitPattern}' wasn't found. The entire logs have been processed.`
+    printWarning(
+      `Regular expression '${lastCommitPattern}' wasn't found. The entire logs have been processed.`
     );
+
     return cleanGitLogs(entireGitLogs);
   } else {
     const lastReleaseGitLogs = entireGitLogs.substring(
@@ -128,7 +97,7 @@ const sortLogsPerCommitType = (commitTypes, gitLogs) => {
     sortedCommits[key].commits = trimmedMatchedCommits || [];
   }
 
-  const notRecognizedCommitsRegexp = getNegativeCommitRegexp(commitTypes);
+  const notRecognizedCommitsRegexp = getRidOfCommitTypesRegexp(commitTypes);
   const notRecognizedCommits = gitLogs
     .match(notRecognizedCommitsRegexp)
     .filter(commit => commit !== "");
@@ -156,12 +125,10 @@ const genReleaseContentWithSortedSections = (
   content,
   sortedCommits
 ) => {
-  const dateObj = new Date();
-  const year = dateObj.getUTCFullYear();
-  const month = `0${dateObj.getUTCMonth() + 1}`.slice(-2);
-  const day = `0${dateObj.getUTCDate()}`.slice(-2);
+  const { year, month, day } = getTwoDigitsDate;
 
   let newChangeLogPart = `${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`;
+
   newChangeLogPart = newChangeLogPart.concat(
     `## [${version}] - ${year}-${month}-${day}\n`
   );
@@ -182,16 +149,6 @@ const genReleaseContentWithSortedSections = (
   return newChangeLogPart;
 };
 
-const logSuccessReleaseGeneration = changelogFilename => {
-  console.log(
-    `\x1b[32mRelease successfully added to ${changelogFilename} file.`
-  );
-};
-
-const logCancelAction = () => {
-  console.log(`\x1b[31mRelease generation was cancelled.`);
-};
-
 const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   if (!(await askAutomaticDefaultChangelog(filename))) {
     return false;
@@ -210,19 +167,20 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   );
 
   if (!commitTypesConfigFilename) {
-    logCancelAction();
+    printCancelAction();
     return;
   }
 
   if (!fileExists(commitTypesConfigFilename)) {
-    console.log(`'${commitTypesConfigFilename}' not found.`);
+    printWarning(`'${commitTypesConfigFilename}' not found.`);
+
     if (await askAutomaticDefaultCommitTypesConfig(commitTypesConfigFilename)) {
       writeToFile(
         commitTypesConfigFilename,
         STRING.DEFAULT_COMMIT_TYPES_CONFIG_CONTENT
       );
     } else {
-      logCancelAction();
+      printCancelAction();
       return;
     }
   }
@@ -233,7 +191,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   );
 
   if (!changeLogFilename) {
-    logCancelAction();
+    printCancelAction();
     return;
   }
 
@@ -246,14 +204,15 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   if (fileExists(changeLogAbsolutePath)) {
     changelogContent = getFileContent(changeLogFilename);
   } else {
-    console.log(`'${changeLogAbsolutePath}' not found.`);
+    printWarning(`'${changeLogAbsolutePath}' not found.`);
+
     changelogContent = await askAndGetDefaultChangelogContent(
       changeLogFilename,
       defaultCommitTypes
     );
 
     if (!changelogContent) {
-      logCancelAction();
+      printCancelAction();
       return;
     }
 
@@ -261,28 +220,30 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   }
 
   const lastReleaseVersion = getLastReleaseVersion(changeLogFilename);
-  console.log(`The current version is ${lastReleaseVersion}`);
 
-  const wantedReleaseVersion = await askAndComputeNewVersionNumber(
-    lastReleaseVersion
+  printSuccess(`The current version is ${lastReleaseVersion}`);
+
+  const incrementType = await askVersionTypeIncrement();
+
+  const wantedReleaseVersion = incrementVersion(
+    lastReleaseVersion,
+    incrementType
   );
 
   if (!wantedReleaseVersion) {
-    logCancelAction();
+    printCancelAction();
     return;
   }
 
   if (!changelogContent.match(`${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
-    console.log(
-      `ERROR:\tCouldn't find entry point inside ${changeLogFilename}`
-    );
+    printError(`ERROR:\tCouldn't find entry point inside ${changeLogFilename}`);
     return;
   }
 
   const lastCommitPattern = await askLastCommitPattern();
 
   if (!lastCommitPattern) {
-    logCancelAction();
+    printCancelAction();
     return;
   }
 
@@ -303,5 +264,5 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   );
 
   writeToFile(changeLogFilename, newChangelogContent);
-  logSuccessReleaseGeneration(changeLogFilename);
+  printSuccessReleaseGeneration(changeLogFilename);
 })();
