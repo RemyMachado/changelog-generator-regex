@@ -12,44 +12,34 @@ import { fileExists, getFileContent } from "./helpers/system/read";
 import { writeToFile } from "./helpers/system/write";
 import { getVersionFromContent } from "./helpers/stringParsing";
 import { commandResultToString, execCommand } from "./helpers/system/exec";
-import STRINGS from "./values/STRINGS";
+import STRING from "./values/STRING";
+import VERSION from "./values/VERSION";
 
 /* eslint-disable no-console */
 
 const askAndComputeNewVersionNumber = async lastVersionNumber => {
   const result = await askVersionIncrement();
-  let wantedVersionNumber = lastVersionNumber;
+
+  const versionParts = lastVersionNumber.split(".");
 
   switch (result) {
-    case 1:
-      wantedVersionNumber = setCharAt(
-        wantedVersionNumber,
-        0,
-        Number(wantedVersionNumber[0]) + 1
-      );
-      wantedVersionNumber = setCharAt(wantedVersionNumber, 2, "0");
-      wantedVersionNumber = setCharAt(wantedVersionNumber, 4, "0");
+    case VERSION.MAJOR:
+      versionParts[0] = Number(versionParts[0]) + 1;
+      versionParts[1] = 0;
+      versionParts[2] = 0;
       break;
-    case 2:
-      wantedVersionNumber = setCharAt(
-        wantedVersionNumber,
-        2,
-        Number(wantedVersionNumber[2]) + 1
-      );
-      wantedVersionNumber = setCharAt(wantedVersionNumber, 4, "0");
+    case VERSION.MINOR:
+      versionParts[1] = Number(versionParts[1]) + 1;
+      versionParts[2] = 0;
       break;
-    case 3:
-      wantedVersionNumber = setCharAt(
-        wantedVersionNumber,
-        4,
-        Number(wantedVersionNumber[4]) + 1
-      );
+    case VERSION.PATCH:
+      versionParts[2] = Number(versionParts[2]) + 1;
       break;
     default:
       return undefined;
   }
 
-  return wantedVersionNumber;
+  return versionParts.join(".");
 };
 
 const getNegativeCommitRegexp = defaultCommitTypes => {
@@ -72,12 +62,12 @@ const getLastReleaseVersion = fileName => {
     return lastVersionResponse[1];
   }
 
-  return STRINGS.DEFAULT_VERSION;
+  return STRING.DEFAULT_VERSION;
 };
 
 const getGitLogsString = () =>
   commandResultToString(
-    execCommand("git", ["log", ...STRINGS.GIT_LOG_ARGUMENTS])
+    execCommand("git", ["log", ...STRING.GIT_LOG_ARGUMENTS])
   );
 
 const cleanGitLogs = gitLogs =>
@@ -109,14 +99,14 @@ const getCleanGitLogs = lastCommitPattern => {
 };
 
 const getDefaultChangelog = defaultCommitTypes => {
-  let defaultChangelog = STRINGS.DEFAULT_CHANGELOG_CONTENT;
+  let defaultChangelog = STRING.DEFAULT_CHANGELOG_CONTENT;
 
   for (const [key, value] of Object.entries(defaultCommitTypes)) {
     defaultChangelog = defaultChangelog.concat(`- [\`${key}\`] ${value}\n`);
   }
 
   defaultChangelog = defaultChangelog.concat(
-    `\n${STRINGS.RELEASE_ENTRY_POINT_PATTERN}\n`
+    `\n${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`
   );
 
   return defaultChangelog;
@@ -144,7 +134,7 @@ const sortLogsPerCommitType = (commitTypes, gitLogs) => {
     .filter(commit => commit !== "");
 
   sortedCommits.untyped = {
-    description: STRINGS.NOT_RECOGNIZED_COMMITS_DESCRIPTION,
+    description: STRING.NOT_RECOGNIZED_COMMITS_DESCRIPTION,
     commits: notRecognizedCommits || []
   };
 
@@ -171,7 +161,7 @@ const genReleaseContentWithSortedSections = (
   const month = `0${dateObj.getUTCMonth() + 1}`.slice(-2);
   const day = `0${dateObj.getUTCDate()}`.slice(-2);
 
-  let newChangeLogPart = `${STRINGS.RELEASE_ENTRY_POINT_PATTERN}\n`;
+  let newChangeLogPart = `${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`;
   newChangeLogPart = newChangeLogPart.concat(
     `## [${version}] - ${year}-${month}-${day}\n`
   );
@@ -190,11 +180,6 @@ const genReleaseContentWithSortedSections = (
   }
 
   return newChangeLogPart;
-};
-
-const setCharAt = (str, index, character) => {
-  if (index > str.length - 1) return str;
-  return str.substr(0, index) + character + str.substr(index + 1);
 };
 
 const logSuccessReleaseGeneration = changelogFilename => {
@@ -221,7 +206,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
 
   const commitTypesConfigFilename = await askFilename(
     "Name of your commit types configuration file:",
-    STRINGS.DEFAULT_COMMIT_TYPES_CONFIG_FILENAME
+    STRING.DEFAULT_COMMIT_TYPES_CONFIG_FILENAME
   );
 
   if (!commitTypesConfigFilename) {
@@ -234,7 +219,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
     if (await askAutomaticDefaultCommitTypesConfig(commitTypesConfigFilename)) {
       writeToFile(
         commitTypesConfigFilename,
-        STRINGS.DEFAULT_COMMIT_TYPES_CONFIG_CONTENT
+        STRING.DEFAULT_COMMIT_TYPES_CONFIG_CONTENT
       );
     } else {
       logCancelAction();
@@ -244,7 +229,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
 
   const changeLogFilename = await askFilename(
     "Name of your changelog file:",
-    STRINGS.DEFAULT_CHANGELOG_FILENAME
+    STRING.DEFAULT_CHANGELOG_FILENAME
   );
 
   if (!changeLogFilename) {
@@ -287,7 +272,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
     return;
   }
 
-  if (!changelogContent.match(`${STRINGS.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
+  if (!changelogContent.match(`${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
     console.log(
       `ERROR:\tCouldn't find entry point inside ${changeLogFilename}`
     );
@@ -313,7 +298,7 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
   );
 
   const newChangelogContent = changelogContent.replace(
-    `${STRINGS.RELEASE_ENTRY_POINT_PATTERN}\n`,
+    `${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`,
     newContent
   );
 

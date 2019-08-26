@@ -1,4 +1,4 @@
-const STRINGS = {
+const STRING = {
   DEFAULT_CHANGELOG_FILENAME: "CHANGELOG.md",
   DEFAULT_COMMIT_TYPES_CONFIG_FILENAME: "default-commit-types.js",
   READ_ENCODING: "utf-8",
@@ -21,4 +21,4 @@ Each commit has to be one of the following [\`type\`]:\n\n`,
 };\n`
 };
 
-export default STRINGS;
+export default STRING;
