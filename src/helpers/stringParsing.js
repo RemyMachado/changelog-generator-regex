@@ -2,7 +2,7 @@ import VERSION from "../values/VERSION";
 import { getVersionRegexp } from "./regularExpressions";
 
 export const getVersionFromContent = content => {
-  return content.match(getVersionRegexp);
+  return content.match(getVersionRegexp());
 };
 
 export const incrementVersion = (version, versionType) => {
