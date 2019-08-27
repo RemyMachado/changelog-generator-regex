@@ -26,4 +26,4 @@ const LOG_COLOR = {
   BG_WHITE: "\x1b[47m"
 };
 
-export default LOG_COLOR
+export default LOG_COLOR;
