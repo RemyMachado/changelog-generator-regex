@@ -4,8 +4,7 @@ import appRoot from "app-root-path";
 
 import { fileExists, getFileContent } from "./helpers/system/read";
 import { writeToFile } from "./helpers/system/write";
-import { commandResultToString, execCommand } from "./helpers/system/exec";
-import { getTwoDigitsDate } from "./helpers/date";
+import { filterOutUselessCommits } from "./helpers/regularExpressions";
 import {
   askWantDefaultChangelog,
   askWantDefaultConfig,
@@ -14,149 +13,27 @@ import {
   askVersionIncrementType
 } from "./helpers/askUser";
 import {
-  getVersionFromContent,
-  incrementVersion
+  genReleaseContent,
+  getDefaultChangelogHeader,
+  getGitCommits,
+  getLastReleaseVersion,
+  incrementVersion,
+  sortCommitsPerType
 } from "./helpers/stringParsing";
-import {
-  cleanGitLogs,
-  getRidOfCommitTypesRegexp
-} from "./helpers/regularExpressions";
 import {
   printCancelAction,
   printError,
   printNormal,
-  printSuccess,
   printSuccessReleaseGeneration,
   printWarning
 } from "./helpers/printers";
 import STRING from "./values/STRING";
 
-const getLastReleaseVersion = content => {
-  const lastVersionResponse = getVersionFromContent(content);
-
-  // lastVersionResponse contains whole regexp result
-  if (lastVersionResponse && lastVersionResponse.length >= 2) {
-    return lastVersionResponse[1];
-  }
-
-  return STRING.DEFAULT_VERSION;
-};
-
-const getGitLogsString = () =>
-  commandResultToString(
-    execCommand("git", ["log", ...STRING.GIT_LOG_ARGUMENTS])
-  );
-
-const getCleanGitLogs = depthLimitPattern => {
-  const entireGitLogs = getGitLogsString();
-
-  const indexOfLastReleaseCommit = entireGitLogs.search(
-    new RegExp(depthLimitPattern)
-  );
-
-  if (indexOfLastReleaseCommit === -1) {
-    printWarning(
-      `Regular expression '${depthLimitPattern}' wasn't found. The entire logs have been processed.`
-    );
-
-    return cleanGitLogs(entireGitLogs);
-  } else {
-    const lastReleaseGitLogs = entireGitLogs.substring(
-      0,
-      indexOfLastReleaseCommit
-    );
-
-    return cleanGitLogs(lastReleaseGitLogs);
-  }
-};
-
-const getDefaultChangelogContent = defaultCommitTypes => {
-  let defaultChangelog = STRING.DEFAULT_CHANGELOG_CONTENT;
-
-  for (const [key, value] of Object.entries(defaultCommitTypes)) {
-    defaultChangelog = defaultChangelog.concat(`- [\`${key}\`] ${value}\n`);
-  }
-
-  defaultChangelog = defaultChangelog.concat(
-    `\n${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`
-  );
-
-  return defaultChangelog;
-};
-
-const sortLogsPerCommitType = (commitTypes, gitLogs) => {
-  const sortedCommits = {};
-
-  for (const [key, value] of Object.entries(commitTypes)) {
-    const commitRegexPattern = `^\\[${key}\\].*$`;
-    const commitRegex = new RegExp(commitRegexPattern, "gm");
-    const matchedCommits = gitLogs.match(commitRegex);
-
-    const trimmedMatchedCommits =
-      matchedCommits &&
-      matchedCommits.map(commit => commit.replace(`[${key}] `, ""));
-
-    sortedCommits[key] = { description: value };
-    sortedCommits[key].commits = trimmedMatchedCommits || [];
-  }
-
-  const notRecognizedCommitsRegexp = getRidOfCommitTypesRegexp(commitTypes);
-  const notRecognizedCommits = gitLogs
-    .match(notRecognizedCommitsRegexp)
-    .filter(commit => commit !== "");
-
-  sortedCommits.untyped = {
-    description: STRING.NOT_RECOGNIZED_COMMITS_DESCRIPTION,
-    commits: notRecognizedCommits || []
-  };
-
-  return sortedCommits;
-};
-
-const appendCommitsToSection = (type, changeLogPart, sortedCommits) => {
-  let appendedChangeLogPart = changeLogPart;
-
-  for (const commit of sortedCommits[type].commits) {
-    appendedChangeLogPart = appendedChangeLogPart.concat("- ", commit, "\n");
-  }
-
-  return appendedChangeLogPart;
-};
-
-const genReleaseContentWithSortedSections = (
-  version,
-  content,
-  sortedCommits
-) => {
-  const { year, month, day } = getTwoDigitsDate;
-
-  let newChangeLogPart = `${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`;
-
-  newChangeLogPart = newChangeLogPart.concat(
-    `## [${version}] - ${year}-${month}-${day}\n`
-  );
-
-  for (const key of Object.keys(sortedCommits)) {
-    if (sortedCommits[key].commits.length > 0) {
-      newChangeLogPart = newChangeLogPart.concat(
-        `### ${sortedCommits[key].commits.length} ${key}: _${sortedCommits[key].description}_\n`
-      );
-    }
-    newChangeLogPart = appendCommitsToSection(
-      key,
-      newChangeLogPart,
-      sortedCommits
-    );
-  }
-
-  return newChangeLogPart;
-};
-
-/* AUTOMATIC LAUNCH: */
+/* AUTOMATIC CALL: */
 (async () => {
-  /* ---Config--- */
+  /* ---Retrieve config--- */
   const configFilename = await askFilename(
-    "Name of your commit types configuration file:",
+    "Name of your commit types configuration file (optional)",
     STRING.DEFAULT_CONFIG_FILENAME
   );
 
@@ -179,11 +56,10 @@ const genReleaseContentWithSortedSections = (
   }
 
   const config = appRoot.require(configFilename).default;
-  console.log(config);
 
-  /* ---Changelog--- */
+  /* ---Retrieve changelog--- */
   const changelogFilename = await askFilename(
-    "Name of your changelog file:",
+    "Name of your changelog file (optional)",
     STRING.DEFAULT_CHANGELOG_FILENAME
   );
 
@@ -205,12 +81,12 @@ const genReleaseContentWithSortedSections = (
       return;
     }
 
-    changelogContent = getDefaultChangelogContent(config);
+    changelogContent = getDefaultChangelogHeader(config);
 
     writeToFile(changelogAbsolutePath, changelogContent);
   }
 
-  /* ---Version--- */
+  /* ---Retrieve version--- */
   const lastReleaseVersion = getLastReleaseVersion(changelogContent);
 
   printNormal(`The current version is ${lastReleaseVersion}`);
@@ -227,7 +103,7 @@ const genReleaseContentWithSortedSections = (
     return;
   }
 
-  // verify changelog entry point existence
+  /* ---Verify changelog entry point existence--- */
   if (!changelogContent.match(`${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
     printError(`ERROR:\tCouldn't find entry point inside ${changelogFilename}`);
     return;
@@ -241,18 +117,19 @@ const genReleaseContentWithSortedSections = (
     return;
   }
 
-  // retrieve wanted commits
-  const cleanGitLogs = getCleanGitLogs(lastCommitPattern);
-  console.log(cleanGitLogs);
+  /* ---Retrieve commits--- */
+  const gitCommits = getGitCommits(lastCommitPattern);
+  const filteredCommits = filterOutUselessCommits(gitCommits);
 
-  const sortedCommits = sortLogsPerCommitType(config, cleanGitLogs);
+  const sortedCommits = sortCommitsPerType(config, filteredCommits);
 
-  const newContent = genReleaseContentWithSortedSections(
+  const newContent = genReleaseContent(
     wantedReleaseVersion,
     changelogContent,
     sortedCommits
   );
 
+  /* ---Insert the new content--- */
   const newChangelogContent = changelogContent.replace(
     `${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`,
     newContent

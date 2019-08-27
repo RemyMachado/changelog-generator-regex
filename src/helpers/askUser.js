@@ -55,7 +55,7 @@ export const askLastCommitPattern = async () => {
   const response = await prompts({
     type: "text",
     name: "pattern",
-    message: `Regular expression to match the 'STOP' commit (not included) ?`,
+    message: `Regular expression to match the last commit (excluded)`,
     initial: STRING.DEFAULT_GIT_LOG_STOP_PATTERN
   });
 
