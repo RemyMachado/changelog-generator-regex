@@ -2,7 +2,7 @@ import prompts from "prompts";
 import STRING from "../values/STRING";
 import VERSION from "../values/VERSION";
 
-export const askAutomaticDefaultChangelog = async filename => {
+export const askWantDefaultChangelog = async filename => {
   const response = await prompts({
     type: "confirm",
     name: "value",
@@ -13,7 +13,7 @@ export const askAutomaticDefaultChangelog = async filename => {
   return response.value;
 };
 
-export const askVersionTypeIncrement = async () => {
+export const askVersionIncrementType = async () => {
   const response = await prompts({
     type: "number",
     name: "value",
@@ -40,7 +40,7 @@ export const askFilename = async (message, initial) => {
   return response.filename;
 };
 
-export const askAutomaticDefaultCommitTypesConfig = async filename => {
+export const askWantDefaultConfig = async filename => {
   const response = await prompts({
     type: "confirm",
     name: "value",

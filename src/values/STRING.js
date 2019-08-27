@@ -1,6 +1,6 @@
 const STRING = {
   DEFAULT_CHANGELOG_FILENAME: "CHANGELOG.md",
-  DEFAULT_COMMIT_TYPES_CONFIG_FILENAME: "default-commit-types.js",
+  DEFAULT_CONFIG_FILENAME: ".changelog-generator-config.js",
   READ_ENCODING: "utf-8",
   DEFAULT_VERSION: "0.0.0",
   GIT_LOG_ARGUMENTS: ['--pretty=format:"- %s by @%an"'],
@@ -10,7 +10,7 @@ const STRING = {
   NOT_RECOGNIZED_COMMITS_DESCRIPTION: "not recognized commit type",
   DEFAULT_CHANGELOG_CONTENT: `# Changelog\n
 Each commit has to be one of the following [\`type\`]:\n\n`,
-  DEFAULT_COMMIT_TYPES_CONFIG_CONTENT: `module.exports.defaultCommitTypes: {
+  DEFAULT_CONFIG_CONTENT: `const DEFAULT_COMMIT_TYPES = {
   feat: 'new feature',
   chore: 'maintain/improve existing features',
   docs: 'document anything related to the project',
@@ -18,7 +18,10 @@ Each commit has to be one of the following [\`type\`]:\n\n`,
   refactor: 'improve code without changing behavior',
   style: 'format, add missing semi colons, fix linter warnings...',
   test: 'unit tests'
-};\n`
+};
+
+export default DEFAULT_COMMIT_TYPES;
+`
 };
 
 export default STRING;

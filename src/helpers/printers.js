@@ -1,6 +1,10 @@
+import LOG_COLOR from "../values/LOG_COLOR";
+
 const colorPrint = (text, logColor) => {
   console.log(`${logColor}${text}`);
 };
+
+export const printNormal = text => console.log(text);
 
 export const printWarning = text => colorPrint(text, LOG_COLOR.FG_YELLOW);
 

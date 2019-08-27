@@ -1,37 +1,40 @@
 #! /usr/bin/env node
 
 import appRoot from "app-root-path";
-import {
-  askAutomaticDefaultChangelog,
-  askAutomaticDefaultCommitTypesConfig,
-  askFilename,
-  askLastCommitPattern,
-  askVersionTypeIncrement
-} from "./helpers/askUser";
+
 import { fileExists, getFileContent } from "./helpers/system/read";
 import { writeToFile } from "./helpers/system/write";
+import { commandResultToString, execCommand } from "./helpers/system/exec";
+import { getTwoDigitsDate } from "./helpers/date";
+import {
+  askWantDefaultChangelog,
+  askWantDefaultConfig,
+  askFilename,
+  askLastCommitPattern,
+  askVersionIncrementType
+} from "./helpers/askUser";
 import {
   getVersionFromContent,
   incrementVersion
 } from "./helpers/stringParsing";
-import { commandResultToString, execCommand } from "./helpers/system/exec";
 import {
   cleanGitLogs,
   getRidOfCommitTypesRegexp
 } from "./helpers/regularExpressions";
-import { getTwoDigitsDate } from "./helpers/date";
 import {
   printCancelAction,
   printError,
+  printNormal,
   printSuccess,
   printSuccessReleaseGeneration,
   printWarning
 } from "./helpers/printers";
 import STRING from "./values/STRING";
 
-const getLastReleaseVersion = fileName => {
-  const lastVersionResponse = getVersionFromContent(getFileContent(fileName));
+const getLastReleaseVersion = content => {
+  const lastVersionResponse = getVersionFromContent(content);
 
+  // lastVersionResponse contains whole regexp result
   if (lastVersionResponse && lastVersionResponse.length >= 2) {
     return lastVersionResponse[1];
   }
@@ -44,16 +47,16 @@ const getGitLogsString = () =>
     execCommand("git", ["log", ...STRING.GIT_LOG_ARGUMENTS])
   );
 
-const getCleanGitLogs = lastCommitPattern => {
+const getCleanGitLogs = depthLimitPattern => {
   const entireGitLogs = getGitLogsString();
 
   const indexOfLastReleaseCommit = entireGitLogs.search(
-    new RegExp(lastCommitPattern)
+    new RegExp(depthLimitPattern)
   );
 
   if (indexOfLastReleaseCommit === -1) {
     printWarning(
-      `Regular expression '${lastCommitPattern}' wasn't found. The entire logs have been processed.`
+      `Regular expression '${depthLimitPattern}' wasn't found. The entire logs have been processed.`
     );
 
     return cleanGitLogs(entireGitLogs);
@@ -67,7 +70,7 @@ const getCleanGitLogs = lastCommitPattern => {
   }
 };
 
-const getDefaultChangelog = defaultCommitTypes => {
+const getDefaultChangelogContent = defaultCommitTypes => {
   let defaultChangelog = STRING.DEFAULT_CHANGELOG_CONTENT;
 
   for (const [key, value] of Object.entries(defaultCommitTypes)) {
@@ -149,85 +152,74 @@ const genReleaseContentWithSortedSections = (
   return newChangeLogPart;
 };
 
-const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
-  if (!(await askAutomaticDefaultChangelog(filename))) {
-    return false;
-  }
-
-  return getDefaultChangelog(commitTypes);
-};
-
 /* AUTOMATIC LAUNCH: */
 (async () => {
-  let changelogContent;
-
-  const commitTypesConfigFilename = await askFilename(
+  /* ---Config--- */
+  const configFilename = await askFilename(
     "Name of your commit types configuration file:",
-    STRING.DEFAULT_COMMIT_TYPES_CONFIG_FILENAME
+    STRING.DEFAULT_CONFIG_FILENAME
   );
 
-  if (!commitTypesConfigFilename) {
+  if (!configFilename) {
     printCancelAction();
     return;
   }
 
-  if (!fileExists(commitTypesConfigFilename)) {
-    printWarning(`'${commitTypesConfigFilename}' not found.`);
+  const configAbsolutePath = appRoot.resolve(configFilename);
 
-    if (await askAutomaticDefaultCommitTypesConfig(commitTypesConfigFilename)) {
-      writeToFile(
-        commitTypesConfigFilename,
-        STRING.DEFAULT_COMMIT_TYPES_CONFIG_CONTENT
-      );
+  if (!fileExists(configAbsolutePath)) {
+    printWarning(`'${configAbsolutePath}' not found.`);
+
+    if (await askWantDefaultConfig(configFilename)) {
+      writeToFile(configAbsolutePath, STRING.DEFAULT_CONFIG_CONTENT);
     } else {
       printCancelAction();
       return;
     }
   }
 
-  const changeLogFilename = await askFilename(
+  const config = appRoot.require(configFilename).default;
+  console.log(config);
+
+  /* ---Changelog--- */
+  const changelogFilename = await askFilename(
     "Name of your changelog file:",
     STRING.DEFAULT_CHANGELOG_FILENAME
   );
 
-  if (!changeLogFilename) {
+  if (!changelogFilename) {
     printCancelAction();
     return;
   }
 
-  const defaultCommitTypes = appRoot.require(commitTypesConfigFilename).default;
+  let changelogContent;
+  const changelogAbsolutePath = appRoot.resolve(changelogFilename);
 
-  console.log(defaultCommitTypes);
-
-  const changeLogAbsolutePath = appRoot.resolve(changeLogFilename);
-
-  if (fileExists(changeLogAbsolutePath)) {
-    changelogContent = getFileContent(changeLogFilename);
+  if (fileExists(changelogAbsolutePath)) {
+    changelogContent = getFileContent(changelogFilename);
   } else {
-    printWarning(`'${changeLogAbsolutePath}' not found.`);
+    printWarning(`'${changelogAbsolutePath}' not found.`);
 
-    changelogContent = await askAndGetDefaultChangelogContent(
-      changeLogFilename,
-      defaultCommitTypes
-    );
-
-    if (!changelogContent) {
+    if (!(await askWantDefaultChangelog(changelogFilename))) {
       printCancelAction();
       return;
     }
 
-    writeToFile(changeLogFilename, changelogContent);
+    changelogContent = getDefaultChangelogContent(config);
+
+    writeToFile(changelogAbsolutePath, changelogContent);
   }
 
-  const lastReleaseVersion = getLastReleaseVersion(changeLogFilename);
+  /* ---Version--- */
+  const lastReleaseVersion = getLastReleaseVersion(changelogContent);
 
-  printSuccess(`The current version is ${lastReleaseVersion}`);
+  printNormal(`The current version is ${lastReleaseVersion}`);
 
-  const incrementType = await askVersionTypeIncrement();
+  const versionIncrementType = await askVersionIncrementType();
 
   const wantedReleaseVersion = incrementVersion(
     lastReleaseVersion,
-    incrementType
+    versionIncrementType
   );
 
   if (!wantedReleaseVersion) {
@@ -235,11 +227,13 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
     return;
   }
 
+  // verify changelog entry point existence
   if (!changelogContent.match(`${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
-    printError(`ERROR:\tCouldn't find entry point inside ${changeLogFilename}`);
+    printError(`ERROR:\tCouldn't find entry point inside ${changelogFilename}`);
     return;
   }
 
+  /* ---Git logs depth to analyze--- */
   const lastCommitPattern = await askLastCommitPattern();
 
   if (!lastCommitPattern) {
@@ -247,10 +241,11 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
     return;
   }
 
-  const sortedCommits = sortLogsPerCommitType(
-    defaultCommitTypes,
-    getCleanGitLogs(lastCommitPattern)
-  );
+  // retrieve wanted commits
+  const cleanGitLogs = getCleanGitLogs(lastCommitPattern);
+  console.log(cleanGitLogs);
+
+  const sortedCommits = sortLogsPerCommitType(config, cleanGitLogs);
 
   const newContent = genReleaseContentWithSortedSections(
     wantedReleaseVersion,
@@ -263,6 +258,6 @@ const askAndGetDefaultChangelogContent = async (filename, commitTypes) => {
     newContent
   );
 
-  writeToFile(changeLogFilename, newChangelogContent);
-  printSuccessReleaseGeneration(changeLogFilename);
+  writeToFile(changelogFilename, newChangelogContent);
+  printSuccessReleaseGeneration(changelogFilename);
 })();
