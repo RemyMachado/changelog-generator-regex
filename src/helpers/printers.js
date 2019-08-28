@@ -16,6 +16,12 @@ export const printCancelAction = () => {
   printError("Release generation was cancelled.");
 };
 
-export const printSuccessReleaseGeneration = changelogFilename => {
-  printSuccess(`Release successfully added to ${changelogFilename} file.`);
+export const printSuccessReleaseGeneration = (
+  changelogFilename,
+  oldVersion,
+  newVersion
+) => {
+  printSuccess(
+    `Release successfully added to ${changelogFilename} file and package.json.\n${oldVersion} -> ${newVersion}`
+  );
 };

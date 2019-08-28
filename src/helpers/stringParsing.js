@@ -1,5 +1,9 @@
 import VERSION from "../values/VERSION";
-import { getVersionRegexp } from "./regularExpressions";
+import {
+  getChangelogVersionRegexp,
+  getPackageJsonTabulationFormatRegexp,
+  getPackageJsonVersionRegexp
+} from "./regularExpressions";
 import { commandResultToString, execCommand } from "./system/exec";
 import STRING from "../values/STRING";
 import { printWarning } from "./printers";
@@ -9,8 +13,8 @@ import {
   getSectionTitleMarkdown
 } from "./markdown";
 
-export const getVersionFromContent = content => {
-  return content.match(getVersionRegexp());
+export const findMatchFromContent = (content, regex) => {
+  return content.match(regex);
 };
 
 export const incrementVersion = (version, versionType) => {
@@ -112,7 +116,10 @@ export const getDefaultChangelogHeader = config => {
 };
 
 export const getLastReleaseVersion = content => {
-  const lastVersionResponse = getVersionFromContent(content);
+  const lastVersionResponse = findMatchFromContent(
+    content,
+    getPackageJsonVersionRegexp()
+  );
 
   // lastVersionResponse contains whole regexp result
   if (lastVersionResponse && lastVersionResponse.length >= 2) {
@@ -144,4 +151,18 @@ export const genReleaseContent = (version, content, sortedCommits) => {
   }
 
   return newChangeLogContent;
+};
+
+export const getPackageJsonTabulationFormat = packageJsonContent => {
+  const formatResponse = findMatchFromContent(
+    packageJsonContent,
+    getPackageJsonTabulationFormatRegexp()
+  );
+
+  // lastVersionResponse contains whole regexp result
+  if (formatResponse && formatResponse.length >= 2) {
+    return formatResponse[1];
+  }
+
+  return "\t";
 };
