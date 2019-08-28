@@ -32,6 +32,7 @@ import {
   printWarning
 } from "./helpers/printers";
 import STRING from "./values/STRING";
+import RETURN_CODE from "./values/RETURN_CODE";
 
 /* AUTOMATIC CALL: */
 (async () => {
@@ -43,7 +44,7 @@ import STRING from "./values/STRING";
 
   if (!configFilename) {
     printCancelAction();
-    return 1;
+    return RETURN_CODE.ERROR;
   }
 
   const configAbsolutePath = appRoot.resolve(configFilename);
@@ -55,7 +56,7 @@ import STRING from "./values/STRING";
       writeToFile(configAbsolutePath, STRING.DEFAULT_CONFIG_CONTENT);
     } else {
       printCancelAction();
-      return 1;
+      return RETURN_CODE.ERROR;
     }
   }
 
@@ -69,7 +70,7 @@ import STRING from "./values/STRING";
 
   if (!changelogFilename) {
     printCancelAction();
-    return 1;
+    return RETURN_CODE.ERROR;
   }
 
   let changelogContent;
@@ -82,7 +83,7 @@ import STRING from "./values/STRING";
 
     if (!(await askWantDefaultChangelog(changelogFilename))) {
       printCancelAction();
-      return 1;
+      return RETURN_CODE.ERROR;
     }
 
     changelogContent = getDefaultChangelogHeader(config);
@@ -111,7 +112,7 @@ import STRING from "./values/STRING";
 
   if (!wantedReleaseVersion) {
     printCancelAction();
-    return 1;
+    return RETURN_CODE.ERROR;
   }
 
   printNormal(`Selection: ${packageJsonVersion} -> ${wantedReleaseVersion}`);
@@ -119,7 +120,7 @@ import STRING from "./values/STRING";
   /* ---Verify changelog entry point existence--- */
   if (!changelogContent.match(`${STRING.RELEASE_ENTRY_POINT_PATTERN}\n`)) {
     printError(`ERROR:\tCouldn't find entry point inside ${changelogFilename}`);
-    return 1;
+    return RETURN_CODE.ERROR;
   }
 
   /* ---Git logs depth to analyze--- */
@@ -127,7 +128,7 @@ import STRING from "./values/STRING";
 
   if (!lastCommitPattern) {
     printCancelAction();
-    return 1;
+    return RETURN_CODE.ERROR;
   }
 
   /* ---Retrieve commits--- */
@@ -176,5 +177,5 @@ import STRING from "./values/STRING";
     wantedReleaseVersion
   );
 
-  return 0;
+  return RETURN_CODE.SUCCESS;
 })();
