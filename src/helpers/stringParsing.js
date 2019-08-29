@@ -45,18 +45,16 @@ const getGitLogsString = () =>
     execCommand("git", ["log", ...STRING.GIT_LOG_ARGUMENTS])
   );
 
-export const getGitCommits = depthLimitPattern => {
+export const getGitCommits = depthLimitRegex => {
   const entireGitLogs = getGitLogsString();
 
-  const indexOfLastReleaseCommit = entireGitLogs.search(
-    new RegExp(depthLimitPattern)
-  );
+  const indexOfLastReleaseCommit = entireGitLogs.search(depthLimitRegex);
 
   let retrievedCommitsString = entireGitLogs;
 
   if (indexOfLastReleaseCommit === -1) {
     printWarning(
-      `Regular expression '${depthLimitPattern}' wasn't found. Every commit has been processed.`
+      `Regular expression '${depthLimitRegex}' wasn't found. Every commit has been processed.`
     );
   } else {
     // keep only new release changes
@@ -73,8 +71,8 @@ export const sortCommitsPerType = (config, commits) => {
   const sortedCommits = {};
   let untypedCommits = commits;
 
-  for (const [key, value] of Object.entries(config)) {
-    const commitTypeRegex = new RegExp(`^\\[${key}\\].*$`, "gm");
+  for (const [name, type] of Object.entries(config)) {
+    const commitTypeRegex = new RegExp(type.regex, "gm");
 
     const matchedCommits = commits.filter(commit =>
       commit.match(commitTypeRegex)
@@ -86,10 +84,10 @@ export const sortCommitsPerType = (config, commits) => {
 
     const typeLessMatchedCommits =
       matchedCommits &&
-      matchedCommits.map(commit => commit.replace(`[${key}] `, ""));
+      matchedCommits.map(commit => commit.replace(type.regex, ""));
 
-    sortedCommits[key] = { description: value };
-    sortedCommits[key].commits = typeLessMatchedCommits || [];
+    sortedCommits[name] = { description: type.description };
+    sortedCommits[name].commits = typeLessMatchedCommits || [];
   }
 
   sortedCommits.untyped = {
@@ -104,8 +102,10 @@ export const getDefaultChangelogHeader = config => {
   /* Header before the release entry point */
   let defaultChangelog = STRING.DEFAULT_CHANGELOG_CONTENT;
 
-  for (const [key, value] of Object.entries(config)) {
-    defaultChangelog = defaultChangelog.concat(`- [\`${key}\`] ${value}\n`);
+  for (const type of Object.values(config)) {
+    defaultChangelog = defaultChangelog.concat(
+      `- \`${type.regex.toString()}\` ${type.description}\n`
+    );
   }
 
   defaultChangelog = defaultChangelog.concat(

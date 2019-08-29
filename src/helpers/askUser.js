@@ -51,13 +51,26 @@ export const askWantDefaultConfig = async filename => {
   return response.value;
 };
 
-export const askLastCommitPattern = async () => {
+export const askLastCommitRegex = async initial => {
   const response = await prompts({
     type: "text",
-    name: "pattern",
+    name: "inputPattern",
     message: `Regular expression to match the last commit (excluded)`,
-    initial: STRING.DEFAULT_GIT_LOG_STOP_PATTERN
+    initial
   });
 
-  return response.pattern;
+  if (response.inputPattern) {
+    if (response.inputPattern instanceof RegExp) {
+      return response.inputPattern;
+    }
+
+    const flags = response.inputPattern.replace(/.*\/([gimsuy]*)$/, "$1");
+    const pattern = response.inputPattern.replace(
+      new RegExp("^/(.*?)/" + flags + "$"),
+      "$1"
+    );
+    return new RegExp(pattern, flags);
+  }
+
+  return response;
 };

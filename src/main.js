@@ -6,13 +6,14 @@ import { fileExists, getFileContent } from "./helpers/system/read";
 import { writeToFile } from "./helpers/system/write";
 import {
   filterOutUselessCommits,
+  getDefaultGitLogStopRegex,
   getPackageJsonVersionRegexp
 } from "./helpers/regularExpressions";
 import {
   askWantDefaultChangelog,
   askWantDefaultConfig,
   askFilename,
-  askLastCommitPattern,
+  askLastCommitRegex,
   askVersionIncrementType
 } from "./helpers/askUser";
 import {
@@ -61,6 +62,9 @@ import RETURN_CODE from "./values/RETURN_CODE";
   }
 
   const config = appRoot.require(configFilename).default;
+  const configStopRegex = config.STOP || getDefaultGitLogStopRegex();
+
+  delete config.STOP;
 
   /* ---Retrieve changelog--- */
   const changelogFilename = await askFilename(
@@ -124,15 +128,15 @@ import RETURN_CODE from "./values/RETURN_CODE";
   }
 
   /* ---Git logs depth to analyze--- */
-  const lastCommitPattern = await askLastCommitPattern();
+  const lastCommitRegex = await askLastCommitRegex(configStopRegex);
 
-  if (!lastCommitPattern) {
+  if (!lastCommitRegex) {
     printCancelAction();
     return RETURN_CODE.ERROR;
   }
 
   /* ---Retrieve commits--- */
-  const gitCommits = getGitCommits(lastCommitPattern);
+  const gitCommits = getGitCommits(lastCommitRegex);
   const filteredCommits = filterOutUselessCommits(gitCommits);
 
   const sortedCommits = sortCommitsPerType(config, filteredCommits);
