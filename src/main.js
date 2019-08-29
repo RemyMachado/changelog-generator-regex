@@ -63,8 +63,10 @@ import RETURN_CODE from "./values/RETURN_CODE";
 
   const config = appRoot.require(configFilename).default;
   const configStopRegex = config.STOP || getDefaultGitLogStopRegex();
+  const configIgnoreRegexps = config.IGNORE || [];
 
   delete config.STOP;
+  delete config.IGNORE;
 
   /* ---Retrieve changelog--- */
   const changelogFilename = await askFilename(
@@ -137,7 +139,10 @@ import RETURN_CODE from "./values/RETURN_CODE";
 
   /* ---Retrieve commits--- */
   const gitCommits = getGitCommits(lastCommitRegex);
-  const filteredCommits = filterOutUselessCommits(gitCommits);
+  const filteredCommits = filterOutUselessCommits(
+    gitCommits,
+    configIgnoreRegexps
+  );
 
   const sortedCommits = sortCommitsPerType(config, filteredCommits);
 

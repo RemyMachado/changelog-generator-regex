@@ -6,9 +6,11 @@ export const getPackageJsonTabulationFormatRegexp = () => /{\n(.+?)(?:"|')/;
 
 export const getDefaultGitLogStopRegex = () => /^.*\[\d+\.\d+\.\d+\].*$/m;
 
-export const filterOutUselessCommits = commits =>
+export const filterOutUselessCommits = (commits, configIgnoreRegexps) =>
   commits
     .map(commit => {
-      return commit.replace(/.*Merge branch.*\n/g, "");
+      return configIgnoreRegexps.reduce((accumulator, currentRegex) => {
+        return accumulator.replace(currentRegex, "");
+      }, commit);
     })
     .filter(commit => commit !== "");

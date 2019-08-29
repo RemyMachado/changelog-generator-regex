@@ -39,7 +39,8 @@ Each commit should match a \`regular expression\`:\n\n`,
     regex: /\\[test\\]/,
     description: "unit tests"
   },
-  STOP: /\\[\\d+\\.\\d+\\.\\d+\\]/
+  STOP: /\\[\\d+\\.\\d+\\.\\d+\\]/,
+  IGNORE: [/.*Merge branch.*\\n/g]
 };
 
 export default DEFAULT_CONFIG;
