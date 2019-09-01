@@ -1,5 +1,5 @@
 # :star2: changelog-generator-regex :book:
-A simple and fast Node.js CLI, generating your changelog file with pretty sections.
+A simple and fast Node.js CLI, generating a markdown changelog file with pretty sections.
 <p align="center">
   <img width="550px" src="https://user-images.githubusercontent.com/30229752/63885932-b0a1f100-c9d9-11e9-8bf1-1c56739ddddc.png"/>
 </p>
