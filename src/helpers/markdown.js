@@ -7,7 +7,7 @@ export const getDatedVersionMarkdown = version => {
 };
 
 export const getSectionTitleMarkdown = (sortedCommits, type) => {
-  return `### ${sortedCommits[type].commits.length} ${type}:\n>_${sortedCommits[type].description}_\n`;
+  return `### ${type}: ${sortedCommits[type].commits.length}\n>_${sortedCommits[type].description}_\n`;
 };
 
 export const commitsToMarkdown = commits =>
