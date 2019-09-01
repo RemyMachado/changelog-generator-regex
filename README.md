@@ -1,5 +1,5 @@
 # :star2: changelog-generator-regex :book:
-A simple and fast Node.js CLI, generating your nice and sorted changelog file.
+A simple and fast Node.js CLI, generating your changelog file with pretty sections.
 <p align="center">
   <img width="550px" src="https://user-images.githubusercontent.com/30229752/63885932-b0a1f100-c9d9-11e9-8bf1-1c56739ddddc.png"/>
 </p>
@@ -17,7 +17,9 @@ The CLI use default configuration and changelog files to speed up your experienc
 - Increment your project version in both your package.json and changelog file.
 - Customize your changelog generation with regular expressions:
   - Ignore all commits you don't want, example: "Merge branch into...".
+  - Compute the number of commits per category.
   - Generate changelog only for the new commits you didn't "change-logged" yet.
+  - Link the author of the commit.
   - Share your configuration accross any project.
 
 ## Demo:
@@ -97,7 +99,7 @@ _---> Here is the next release entry point <---_
 _It ends here_
 
 ## Contributing :bowtie:
-Feel free to create issues and pull requests, your help is precious.
+Feel free to create issues or pull requests, your help is precious.
 
 ## License :scroll:
 [MIT](https://en.wikipedia.org/wiki/MIT_License)
