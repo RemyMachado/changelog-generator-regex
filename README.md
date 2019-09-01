@@ -93,7 +93,7 @@ _---> Here is the next release entry point <---_
 ### untyped: 1
 >_not recognized commit type_
 - Initial commit by @Rémy Machado
-<br/>
+
 _It ends here_
 
 ## Contributing :bowtie:
