@@ -102,4 +102,4 @@ _It ends here_
 Feel free to create issues or pull requests, your help is precious.
 
 ## License :scroll:
-[MIT](https://en.wikipedia.org/wiki/MIT_License)
+[MIT](https://github.com/RemyMachado/changelog-generator-regex/blob/master/LICENSE)
