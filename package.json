@@ -4,6 +4,9 @@
   "description": "Node CLI generating your changelog file, based on your commit messages.",
   "main": "src/main.js",
   "scripts": {
+    "changelog": "node bin/changelog-generator-regex.js",
+    "changelog-generator": "node bin/changelog-generator-regex.js",
+    "changelog-generator-regex": "node bin/changelog-generator-regex.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
