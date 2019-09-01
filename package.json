@@ -1,5 +1,5 @@
 {
-  "name": "changelog-generator",
+  "name": "changelog-generator-regex",
   "version": "1.0.0",
   "description": "Node CLI generating your changelog file, based on your commit messages.",
   "main": "src/main.js",
@@ -7,12 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "changelog": "bin/changelog-generator.js",
-    "changelog-generator": "bin/changelog-generator.js"
+    "changelog": "bin/changelog-generator-regex.js",
+    "changelog-generator": "bin/changelog-generator-regex.js",
+    "changelog-generator-regex": "bin/changelog-generator-regex.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RemyMachado/changelog-generator.git"
+    "url": "git+https://github.com/RemyMachado/changelog-generator-regex.git"
   },
   "keywords": [
     "changelog",
@@ -25,9 +26,9 @@
   "author": "Rémy Machado <remy.machado@epitech.eu> (https://github.com/RemyMachado)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/RemyMachado/changelog-generator/issues"
+    "url": "https://github.com/RemyMachado/changelog-generator-regex/issues"
   },
-  "homepage": "https://github.com/RemyMachado/changelog-generator#readme",
+  "homepage": "https://github.com/RemyMachado/changelog-generator-regex#readme",
   "dependencies": {
     "app-root-path": "^2.2.1",
     "esm": "^3.2.25",

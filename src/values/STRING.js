@@ -1,7 +1,7 @@
 const STRING = {
   PACKAGE_JSON_FILENAME: "package.json",
   DEFAULT_CHANGELOG_FILENAME: "CHANGELOG.md",
-  DEFAULT_CONFIG_FILENAME: ".changelog-generator-config.js",
+  DEFAULT_CONFIG_FILENAME: ".changelog-generator-regex-config.js",
   READ_ENCODING: "utf-8",
   DEFAULT_VERSION: "0.0.0",
   GIT_LOG_ARGUMENTS: ["--pretty=format:%s by @%an"],
